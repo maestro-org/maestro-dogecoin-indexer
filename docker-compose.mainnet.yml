@@ -1,0 +1,35 @@
+# Mainnet overlay: docker compose -f docker-compose.yml -f docker-compose.mainnet.yml up -d
+#
+# Bring disk and patience: the Dogecoin mainnet chain is ~5.8M blocks and the
+# compressor rolldb grows past a terabyte with full enrichment state.
+services:
+  dogecoin:
+    command:
+      - -datadir=/data
+      - -server
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcuser=maestro
+      - -rpcpassword=maestro
+      - -dbcache=2000
+      - -rpcthreads=8
+      - -rpcworkqueue=64
+      - -printtoconsole
+    healthcheck:
+      test: ["CMD", "dogecoin-cli", "-datadir=/data", "-rpcuser=maestro", "-rpcpassword=maestro", "getblockchaininfo"]
+  compressor:
+    volumes:
+      - ./configs/compressor/mainnet.toml:/etc/compressor-xdg/config.toml:ro
+      - compressor-rolldb:/data
+  polyphony-a:
+    volumes:
+      - ./configs/polyphony/mainnet.toml:/etc/polyphony-xdg/config.toml:ro
+  polyphony-b:
+    volumes:
+      - ./configs/polyphony/mainnet-b.toml:/etc/polyphony-xdg/config.toml:ro
+  mapi:
+    command:
+      - --mode=dogecoin
+      - --node-address=http://dogecoin:22555
+      - --tikv-address=pd:2379
+      - --redis=redis://redis:6379

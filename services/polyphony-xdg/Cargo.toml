@@ -1,0 +1,63 @@
+[package]
+name = "polyphony-xdg"
+version = "0.1.0"
+edition = "2021"
+description = "Dogecoin chain indexer: folds enriched blocks through reducers into TiKV"
+license.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hex = "0.4.3"
+clap = { version = "3.2.6", features = ["derive"] }
+log = "0.4.14"
+merge = "0.1.0"
+config = { version = "0.13.3", default-features = false, features = [
+    "toml",
+    "json",
+] }
+serde = { version = "1.0.136", features = ["derive"] }
+gasket = { git = "https://github.com/construkts/gasket-rs.git", rev = "8b90825f63eb975d323ed3133d72db95e600b927" }
+thiserror = "^1.0.30"
+tikv-client = { git = "https://github.com/maestro-org/client-rust.git", rev = "0ea0f5620ea5f64c202260b5359facc6c8993eab" }
+timbre-xbt = { path = "../../crates/timbre-xbt" }
+lazy_static = "1.4.0"
+async-trait = "0.1.68"
+itertools = "0.10.5"
+tracing = "0.1.36"
+tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
+chrono = "0.4.38"
+redis = "0.27.5"
+
+# async feature
+futures = { version = "0.3.24" }
+tokio = { version = "1.21.1", features = ["rt-multi-thread"] }
+
+# elastic feature
+
+# tui feature
+indicatif = { version = "0.17.0-rc.11", optional = true }
+
+# required for CI to complete successfully
+openssl = { version = "0.10", optional = true, features = ["vendored"] }
+json = "0.12.4"
+serde_json = "1.0.108"
+
+tonic = { version = "0.11.0", features = ["tls", "gzip"] }
+prost = "0.12"
+futures-util = "0.3.30"
+
+bitcoin = { package = "bitcoin", version = "0.32.3", features = ["serde", "rand-std"] }
+ordinals = { package = "ordinals", version = "0.0.8" }
+anyhow = "1.0.86"
+
+[features]
+tui = ["indicatif"]
+default = ["tui"]
+
+[build-dependencies]
+tonic-build = "0.11.0"
+
+[lints]
+workspace = true

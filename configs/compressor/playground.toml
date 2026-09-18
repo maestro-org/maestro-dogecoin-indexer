@@ -1,0 +1,28 @@
+# compressor-xdg — playground: native run against local node/tiup TiKV.
+
+[logging]
+max_level = "info"
+
+[chain_db]
+path = "./tmp/playground/rolldb"
+# Blocks deeper than this many confirmations are treated as immutable.
+immutable_after_confs = 1000
+
+[sync]
+node_address = "127.0.0.1:44556"
+node_rpc = "127.0.0.1:44555"
+node_rpc_user = "maestro"
+node_rpc_pass = "maestro"
+network = "dogecoin_testnet"
+health_endpoint = "0.0.0.0:50052"
+# Dunes activation height. Not pinned for testnet, so index from genesis
+# rather than risk missing early activity.
+first_rune_height = 0
+# Inscriptions activation height.
+first_inscription_height = 4250000
+block_page_size = 10
+sync_channel_queue = 11
+utxos_in_memory = true
+
+[serve]
+listen_address = "[::]:50051"

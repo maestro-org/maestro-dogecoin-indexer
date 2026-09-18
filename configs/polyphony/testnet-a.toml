@@ -1,0 +1,86 @@
+# polyphony-xdg — testnet, docker compose, primary instance.
+# Env overrides use the POLYPHONY prefix with __ separator,
+# e.g. POLYPHONY__STORAGE__INSTANCE_ID.
+
+[general]
+stage_timeout_secs = 1800
+stage_message_queue = 20
+# Rollback buffer depth (blocks). A reorg deeper than this buffer is
+# unrecoverable and requires an instance resync.
+buffer_size = 128
+
+[source]
+type = "Compressor"
+url = "http://compressor:50051"
+max_items_per_page = 20
+
+[intersect]
+type = "Origin"
+
+[storage]
+type = "TiKV"
+connection_params = "pd:2379"
+redis_address = "redis://redis:6379"
+network = "testnet"
+dataplane_id = 0
+instance_id = 0
+
+[[reducers]]
+type = "BalancesByBrc20"
+
+[[reducers]]
+type = "BalancesByRuneId"
+
+[[reducers]]
+type = "Brc20BalancesByScriptHash"
+
+[[reducers]]
+type = "Brc20TermsByTicker"
+
+[[reducers]]
+type = "EtchingByRuneId"
+
+[[reducers]]
+type = "InscriptionUtxosByScriptHash"
+
+[[reducers]]
+type = "ContentByInscriptionId"
+
+[[reducers]]
+type = "InscriptionsByScriptHash"
+
+[[reducers]]
+type = "InscriptionsByUtxo"
+
+[[reducers]]
+type = "MintsByRuneId"
+
+[[reducers]]
+type = "RuneBalancesByScriptHash"
+
+[[reducers]]
+type = "RuneIdByRuneName"
+
+[[reducers]]
+type = "RunesByUtxo"
+
+[[reducers]]
+type = "SatBalanceByScriptHash"
+
+[[reducers]]
+type = "ScriptByScriptHash"
+
+[[reducers]]
+type = "ScriptHashByAddressPayloadHash"
+
+[[reducers]]
+type = "TransferInscriptionsByScriptHash"
+
+[[reducers]]
+type = "TxsByScriptHash"
+
+[[reducers]]
+type = "UtxosByRuneId"
+
+[[reducers]]
+type = "UtxosByScriptHash"

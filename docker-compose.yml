@@ -1,0 +1,217 @@
+# Full Dogecoin indexing stack on testnet.
+#
+#   docker compose up -d --build
+#
+# Services come up in dependency order; dogecoind then compressor begin syncing
+# testnet immediately (this takes a few hours on first run). Progress:
+#
+#   curl -s localhost:50052/health | jq          # compressor sync progress
+#   docker compose logs -f polyphony-a           # reducer commits
+#   curl -s localhost:3000/healthcheck           # API up
+#
+# The second indexer instance (demonstrating parallel backfill + swap-over) is
+# behind a profile — start it once polyphony-a is ahead:
+#
+#   docker compose --profile multi up -d polyphony-b
+#
+# MVCC garbage collection (tikv-gc) runs automatically every 10 minutes;
+# `make gc` triggers a manual one-shot run.
+
+name: maestro-dogecoin-indexer
+
+services:
+  # Dogecoin Core, built from the official release binaries (see the
+  # Dockerfile for checksum verification).
+  dogecoin:
+    build:
+      context: ./configs/dogecoin
+    command:
+      - -datadir=/data
+      - -testnet
+      - -server
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcuser=maestro
+      - -rpcpassword=maestro
+      # keep RPC responsive and initial sync fast
+      - -dbcache=2000
+      - -rpcthreads=8
+      - -rpcworkqueue=64
+      - -printtoconsole
+    volumes:
+      - dogecoin-data:/data
+    # allow the db cache to flush fully on shutdown
+    stop_grace_period: 5m
+    healthcheck:
+      test: ["CMD", "dogecoin-cli", "-datadir=/data", "-testnet", "-rpcuser=maestro", "-rpcpassword=maestro", "getblockchaininfo"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  compressor:
+    build:
+      context: .
+      dockerfile: services/compressor-xdg/Dockerfile
+    command: ["/etc/compressor-xdg/config.toml", "daemon"]
+    volumes:
+      - ./configs/compressor/testnet.toml:/etc/compressor-xdg/config.toml:ro
+      - compressor-rolldb:/data
+    ports:
+      - "50051:50051" # gRPC sync service
+      - "50052:50052" # health
+    depends_on:
+      dogecoin:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:50052/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    restart: unless-stopped
+
+  pd:
+    image: pingcap/pd:v8.5.1
+    command:
+      - --name=pd
+      - --client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://pd:2379
+      - --peer-urls=http://0.0.0.0:2380
+      - --advertise-peer-urls=http://pd:2380
+      - --data-dir=/data/pd
+    volumes:
+      - pd-data:/data
+    ports:
+      - "2379:2379"
+    restart: unless-stopped
+
+  tikv:
+    image: pingcap/tikv:v8.5.1
+    command:
+      - --addr=0.0.0.0:20160
+      - --advertise-addr=tikv:20160
+      - --status-addr=0.0.0.0:20180
+      - --pd-endpoints=http://pd:2379
+      - --data-dir=/data/tikv
+      - --config=/etc/tikv/tikv.toml
+    volumes:
+      - tikv-data:/data
+      - ./configs/tikv/tikv.toml:/etc/tikv/tikv.toml:ro
+    depends_on:
+      - pd
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  polyphony-a:
+    build:
+      context: .
+      dockerfile: services/polyphony-xdg/Dockerfile
+    command: ["daemon", "--console", "plain", "--config", "/etc/polyphony-xdg/config.toml"]
+    environment:
+      RUST_LOG: info
+    volumes:
+      - ./configs/polyphony/testnet-a.toml:/etc/polyphony-xdg/config.toml:ro
+    depends_on:
+      compressor:
+        condition: service_started
+      tikv:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Second indexer instance (different instance_id, same reducers): start it later
+  # to watch it backfill in parallel and take over instance selection in mapi once
+  # it catches up.
+  polyphony-b:
+    profiles: ["multi"]
+    build:
+      context: .
+      dockerfile: services/polyphony-xdg/Dockerfile
+    command: ["daemon", "--console", "plain", "--config", "/etc/polyphony-xdg/config.toml"]
+    environment:
+      RUST_LOG: info
+    volumes:
+      - ./configs/polyphony/testnet-b.toml:/etc/polyphony-xdg/config.toml:ro
+    depends_on:
+      compressor:
+        condition: service_started
+      tikv:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mapi:
+    build:
+      context: .
+      dockerfile: services/mapi-xdg/Dockerfile
+    command:
+      - --mode=dogecoin-testnet
+      - --node-address=http://dogecoin:44555
+      - --tikv-address=pd:2379
+      - --redis=redis://redis:6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      tikv:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      dogecoin:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # MVCC GC safepoint manager: computes the newest safely-collectable timestamp
+  # from the indexer cursors in Redis and submits it to PD, every 10 minutes.
+  # Without it TiKV never garbage-collects old MVCC versions. (Production runs the
+  # same binary as a CronJob; `make gc` triggers a manual one-shot run.)
+  tikv-gc:
+    build:
+      context: .
+      dockerfile: services/tikv-gc/Dockerfile
+    command: ["sh", "-c", "while true; do tikv-gc; sleep 600; done"]
+    environment:
+      TIKV_ADDRESS: pd:2379
+      REDIS_ADDRESS: redis://redis:6379
+    depends_on:
+      tikv:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # On-demand admin CLI (never auto-starts). Inspect or delete indexer key ranges:
+  #   docker compose run --rm daw pd:2379 redis://redis:6379 delete instance 0 1
+  # Dry-run by default; append --force to actually delete.
+  daw:
+    profiles: ["admin"]
+    build:
+      context: .
+      dockerfile: services/daw/Dockerfile
+    environment:
+      RUST_LOG: info
+    restart: "no"
+
+volumes:
+  dogecoin-data:
+  compressor-rolldb:
+  pd-data:
+  tikv-data:

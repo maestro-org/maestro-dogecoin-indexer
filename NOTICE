@@ -1,0 +1,30 @@
+Maestro Dogecoin Indexer
+Copyright 2026 Go Maestro Inc.
+
+This product includes software developed at Go Maestro Inc.
+(https://www.gomaestro.org/).
+
+---
+
+The indexer (polyphony-xdg) began as a fork of TxPipe's Scrolls
+(https://github.com/txpipe/scrolls, Apache-2.0) and has since been
+substantially rewritten; portions of the original remain. It is built on the
+gasket staged-pipeline framework (https://github.com/construkts/gasket-rs,
+Apache-2.0).
+
+Metaprotocol handling builds on the ord project
+(https://github.com/ordinals/ord, CC0-1.0) and the ordinals crate; the dunes
+implementation is a Dogecoin adaptation of the runes protocol machinery from
+those projects. Dogecoin block decoding uses a maintained fork of rust-bitcoin
+(https://github.com/maestro-org/rust-bitcoin, upstream
+https://github.com/rust-bitcoin/rust-bitcoin, MIT/CC0), and the API layer's
+Dogecoin address handling uses rust-dogecoin
+(https://github.com/tobin-crypto/rust-dogecoin, a rust-bitcoin derivative,
+pinned by revision).
+
+compressor-xdg's P2P handshake and the Dogecoin genesis constants derive in
+part from metashrew (https://github.com/sandshrewmetaprotocols/metashrew,
+MIT).
+
+The stack uses maintained forks of the TiKV Rust client, published under the
+maestro-org GitHub organisation (Apache-2.0).

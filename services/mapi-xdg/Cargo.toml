@@ -1,0 +1,45 @@
+[package]
+name = "mapi-xdg"
+version = "0.0.1"
+edition = "2021"
+description = "Stateless REST API serving Dogecoin index data from TiKV"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+async-trait = "0.1.80"
+axum = "0.7.5"
+axum-macros = "0.4.1"
+base64 = "0.22.1"
+bitcoincore-rpc-async = "3.0.1"
+clap = { version = "4.5.4", features = ["derive", "env"] }
+dashmap = "5.5.3"
+hex = "0.4.3"
+reqwest = { version = "0.12.4", features = ["json"] }
+serde = { version = "1.0.207", features = ["derive"] }
+serde_json = "1.0.115"
+serde_with = "1.11"
+thiserror = "1.0.58"
+tokio = { version = "1.37.0", features = ["full"] }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+utoipa = { version = "4.2.3", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7.1.0", features = ["axum"] }
+redis = { version = "0.27.2", features = ["tokio-comp", "connection-manager"] }
+r2d2 = "0.8.10"
+r2d2_redis2 = "0.23.3"
+lazy_static = "1.4.0"
+
+strum = "0.24.1"
+strum_macros = "0.24.1"
+
+bb8 = "0.8.1"
+bb8-tikv = { git = "https://github.com/maestro-org/bb8-tikv.git", rev = "b815ea57b9eb49fe9e4ebd05796f5faaadff7490" }
+tikv-client = { git = "https://github.com/maestro-org/client-rust.git", rev = "0ea0f5620ea5f64c202260b5359facc6c8993eab" }
+timbre-xbt = { path = "../../crates/timbre-xbt" }
+dogecoin = { git = "https://github.com/tobin-crypto/rust-dogecoin", rev = "43391397696725abe3170d8d2ce4a67cdf4bd093" }
+config = "0.13.3"
+bitcoin = { version = "0.30.1", features = ["rand"] }
+ordinals = "0.0.8"
+[lints]
+workspace = true

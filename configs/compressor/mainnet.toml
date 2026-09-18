@@ -1,0 +1,27 @@
+# compressor-xdg — dogecoin.
+
+[logging]
+max_level = "info"
+
+[chain_db]
+path = "/data/rolldb"
+# Blocks deeper than this many confirmations are treated as immutable.
+immutable_after_confs = 1000
+
+[sync]
+node_address = "dogecoin:22556"
+node_rpc = "dogecoin:22555"
+node_rpc_user = "maestro"
+node_rpc_pass = "maestro"
+network = "dogecoin"
+health_endpoint = "0.0.0.0:50052"
+# Dunes activation height.
+first_rune_height = 5084000
+# Inscriptions activation height.
+first_inscription_height = 4600000
+block_page_size = 10
+sync_channel_queue = 11
+utxos_in_memory = true
+
+[serve]
+listen_address = "[::]:50051"
